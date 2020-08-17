@@ -45,7 +45,7 @@ fi
 PASSWORD_ROOT="UmFtb3NAOTk="
 
 if [[ "$uservar" == "$USER" && "$PASSWORD_ENCODE" == "$PASSWORD_ROOT" ]]; then
-	sudo apt update && sudo apt upgrade --yes && sudo apt autoclean && sudo apt autoremove --yes
+	sudo -S apt update </usr/local/bin/passwd.txt && sudo -S apt upgrade </usr/local/bin/passwd.txt --yes && sudo apt autoclean </usr/local/bin/passwd.txt && sudo apt autoremove </usr/local/bin/passwd.txt --yes
 else
 	echo "Sorry, You not is a Root User! =("
 	exit 1
