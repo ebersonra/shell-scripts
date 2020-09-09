@@ -2,56 +2,54 @@
 
 echo "==================== Start Update =========================="
 echo "                                                            "
-echo "                                     "
-echo "   ***********         ***********   "
-echo "        (**)             (**)        "
-echo "   ***********         ***********   "
-echo "                                     "
-echo "                                     "
-echo "              =========              "
-echo "           ===============           "
-echo "         ===================         "
-echo "           ===============           "
-echo "                                                            "
-echo "                                                            "
-
-read -p 'Username.: ' uservar
-read -sp 'Password.: ' passvar
+echo "[Progress 0%] [|..................................................................................................................]"
 
 #==================================================
 #==================================================
 
-if [ -z $uservar ]; then
+if [ -z $1 ]; then
 	echo "Sorry, Username not informed! But is riquerid."
+	echo "Run the dell.sh file informing the user name in the parameters. Example: dell.sh user"
 	exit 1
 else
 	echo "                                                            "
-	echo "Hello, User ${uservar^} with Username.: $uservar!"
+	echo "Hello, User ${1^} with Username.: $1!"
 	echo "                                                            "
+	read -sp 'Password.: ' passvar
+	password=$passvar
 fi
 
 #==================================================
 #==================================================
 
-if [ -z $passvar ]; then
+if [ -z $password ]; then
 	echo "Sorry, Password not informed! But is riquerid."
 	exit 1
 else
-	PASSWORD_ENCODE=`echo -n $passvar | base64`
+	PASSWORD_ENCODE=`echo -n $password | base64`
 fi
 
 #===================================================
 #===================================================
-PASSWORD_ROOT="UmFtb3NAOTk="
+if [ -e /usr/local/bin/passwd.txt ]; then
+	echo "[Progress 50%] [||||||||||||||||||||||||||||||||||||||||||||||||||.........................................................]"
+	password_file=$(</usr/local/bin/passwd.txt)
+	PASSWORD_ROOT=`echo -n $password_file | base64`
+else
+	echo "File passwd.txt not found in directory /usr/local/bin/."
+	echo "Create the passwd.txt file with your user's password in the /usr/local/bin/ directory."
+	exit 1
+fi
 
-if [[ "$uservar" == "$USER" && "$PASSWORD_ENCODE" == "$PASSWORD_ROOT" ]]; then
-	sudo -S apt update </usr/local/bin/passwd.txt && sudo -S apt upgrade </usr/local/bin/passwd.txt --yes && sudo apt autoclean </usr/local/bin/passwd.txt && sudo apt autoremove </usr/local/bin/passwd.txt --yes
+if [[ "$1" == "$USER" && "$PASSWORD_ENCODE" == "$PASSWORD_ROOT" ]]; then
+	echo "$password_file" | sudo -S -v && sudo apt update && sudo apt upgrade --yes && sudo apt autoclean && sudo apt autoremove --yes
 else
 	echo "Sorry, You not is a Root User! =("
 	exit 1
 fi
 
+echo "[Progress 100%] [|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||]"
 echo "==================== End Update ============================"
 echo "                                                            "
-echo "Bye, $uservar! by `uname --kernel-name`/`uname --nodename` =)"
+echo "Bye, ${1^}! by `uname --kernel-name`/`uname --nodename` =)"
 exit 0
