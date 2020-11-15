@@ -52,3 +52,21 @@ get_text_config() {
  echo "${format_line}${reset}"
  echo "${espace_line}"
 }
+
+install_default_jdk_jre() {
+ echo "## Init install_default_jdk_jre()"
+ echo "$1" | sudo -S -v && sudo apt install default-jre --yes && sudo apt install default-jdk --yes && echo "JAVAC VERSION: `javac -version`" && echo "JAVA VERSION: `java -version`"
+ echo "## End install_default_jdk_jre()"
+}
+
+install_openjdk_jre_by_version() {
+ echo "## Init install_openjdk_jre_by_version"
+ echo "$1" | sudo -S -v && sudo apt install openjdk-${JAVA_VERSION}-jre --yes && sudo apt install openjdk-${JAVA_VERSION}-jdk --yes && echo "JAVAC VERSION: `javac -version`" && echo "JAVA VERSION: `java -version`"
+ echo "## End install_openjdk_jre_by_version"
+}
+
+add_java_home_in_file_environment(){
+ echo "## Int add_java_home_in_file_environment()"
+ echo "$1" | sudo -S -v && sudo sed -i -e '$aJAVA_HOME="'${JAVA_PATH}'"' /etc/environment && source /etc/environment
+ echo "## End add_java_home_in_file_environment()"
+}

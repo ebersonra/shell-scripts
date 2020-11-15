@@ -1,6 +1,12 @@
 #!/bin/bash
 
-. $(pwd)/lib/common.sh $1
+path_common=$(pwd)
+
+if [ -e "${path_common}"/lib/common.sh ];then
+	. ${path_common}/lib/common.sh $1
+else
+	. /usr/local/bin/lib/common.sh $1
+fi
 
 echo "${magenta}${bold}## Hi, ${USER^}! =) ##${reset}"
 echo "${espace_line}"
@@ -27,9 +33,13 @@ if [ -z "$JAVA_HOME" ]; then
 	echo "## JDK/JRE no exist. Init install JDK/JRE ##"
 	echo "${espace_line}"
 
-	if [ -e /usr/local/bin/dell.sh ]; then
-		/usr/local/bin/dell.sh $USER
-		error_code=$?
+		if [ -e $(pwd)/dell.sh ]; then
+			$(pwd)/dell.sh $USER
+			error_code=$?
+		else
+			/usr/local/bin/dell.sh $USER
+			error_code=$?
+		fi
 
 		if [ "$error_code" -ne "0" ];then
 			echo "${reset}## ${red}${bold}Error: ${reset}Failed to executed shell script ${green}${bold}dell.sh ${reset}##"
@@ -43,14 +53,14 @@ if [ -z "$JAVA_HOME" ]; then
 			echo "## Install Default JDK/JRE"
 			echo "${espace_line}"
 			
-			echo "$password_file" | sudo -S -v && sudo apt install default-jre --yes && sudo apt install default-jdk --yes && echo "JAVAC VERSION: `javac -version`" && echo "JAVA VERSION: `java -version`"
+			install_default_jdk_jre "${password_file}"
 
 			get_java_path
 		else
 			echo "## Install JDK/JRE Version $JAVA_VERSION"
 			echo "${espace_line}"
 			
-			echo "$password_file" | sudo -S -v && sudo apt install openjdk-${JAVA_VERSION}-jre --yes && sudo apt install openjdk-${JAVA_VERSION}-jdk --yes && echo "JAVAC VERSION: `javac -version`" && echo "JAVA VERSION: `java -version`"
+			install_openjdk_jre_by_version "${password_file}"
 
 			get_java_path
 		fi
@@ -63,7 +73,7 @@ if [ -z "$JAVA_HOME" ]; then
 			echo "## Directory ${bold}${JAVA_PATH} ${reset}exists. ##"
 			echo "${espace_line}"
 
-			echo "$password_file" | sudo -S -v && sudo sed -i -e '$aJAVA_HOME="'${JAVA_PATH}'"' /etc/environment && source /etc/environment
+			add_java_home_in_file_environment "${password_file}"
 
 			echo "## Add Default JDK/JRE `echo $JAVA_HOME` ##"
 			echo "${espace_line}"
@@ -72,13 +82,8 @@ if [ -z "$JAVA_HOME" ]; then
 			echo "${espace_line}"
 			exit 100
 		fi
-	else
-		echo "## File ${green}${bold}dell.sh ${reset}not found in directory ${bold}/usr/local/bin/. ${reset}##"
-        	echo "## Create the ${green}${bold}dell.sh ${reset}file in the ${bold}/usr/local/bin/ ${reset}directory. ##"
-        	exit 099
-	fi
 else
-	echo "${magenta}${bold}${format_line}"
+	echo "${yellow}${bold}${format_line}"
 	echo "## `echo $JAVA_HOME` is installed and configured ##"
 	echo "${format_line}${reset}"
 	echo "${espace_line}"
