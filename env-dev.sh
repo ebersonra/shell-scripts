@@ -2,7 +2,7 @@
 
 path_common=$(pwd)
 
-if [ -e "${path_common}"/lib/common.sh ];then
+if [ -e "${path_common}"/lib/common.sh ]; then
 	. ${path_common}/lib/common.sh $1
 else
 	. /usr/local/bin/lib/common.sh $1
@@ -15,9 +15,9 @@ echo "## Configuration initial the of environment for developer ##"
 echo "${espace_line}"
 
 if [ -z "$JAVA_VERSION" ]; then
-	get_text_config "1) Config Default JDK/JRE"
+	getTextConfig "1) Config Default JDK/JRE"
 else
-	get_text_config "1) Config JDK/JRE Version $JAVA_VERSION"
+	getTextConfig "1) Config JDK/JRE Version $JAVA_VERSION"
 fi
 
 echo "## Valid if Default JDK/JRE exist in env JAVA_HOME ##"
@@ -41,8 +41,8 @@ if [ -z "$JAVA_HOME" ]; then
 			error_code=$?
 		fi
 
-		if [ "$error_code" -ne "0" ];then
-			echo "${reset}## ${red}${bold}Error: ${reset}Failed to executed shell script ${green}${bold}dell.sh ${reset}##"
+		if [ "$error_code" -ne "0" ]; then
+			logError "Failed to executed shell script ${green}${bold}dell.sh ${reset}"
 			exit $error_code
 		fi
 
@@ -53,16 +53,16 @@ if [ -z "$JAVA_HOME" ]; then
 			echo "## Install Default JDK/JRE"
 			echo "${espace_line}"
 			
-			install_default_jdk_jre "${password_file}"
+			installDefaultJdkJre "${password_file}"
 
-			get_java_path
+			getJavaPath
 		else
 			echo "## Install JDK/JRE Version $JAVA_VERSION"
 			echo "${espace_line}"
 			
-			install_openjdk_jre_by_version "${password_file}"
+			installOpenjdkJreByVersion "${password_file}"
 
-			get_java_path
+			getJavaPath
 		fi
 
 		echo "## Config JAVA_HOME in ${bold}/etc/environment ${reset}##"
@@ -73,14 +73,14 @@ if [ -z "$JAVA_HOME" ]; then
 			echo "## Directory ${bold}${JAVA_PATH} ${reset}exists. ##"
 			echo "${espace_line}"
 
-			add_java_home_in_file_environment "${password_file}"
+			addJavaHomeInFileEnvironment "${password_file}"
 
 			echo "## Add Default JDK/JRE `echo $JAVA_HOME` ##"
 			echo "${espace_line}"
 		else
-			echo "## ${red}${bold}Error: ${reset}Directory ${JAVA_PATH} does not exists. ##"
+			logError "Directory ${JAVA_PATH} does not exists."
 			echo "${espace_line}"
-			exit 100
+			exit 1
 		fi
 else
 	echo "${yellow}${bold}${format_line}"
@@ -95,11 +95,48 @@ else
 	echo "${espace_line}"
 fi
 
-get_text_config "End 1) Config Default JDK/JRE"
+getTextConfig "End 1) Config Default JDK/JRE"
 
-get_text_config "2) Config Gradle"
+getTextConfig "2) Config Gradle"
 
-get_text_config "End 2) Config Gradle"
+# force to lowercase
+typeset -l answer="i"
+
+while [[ "$answer" != "y" && "$answer" != "n" ]]
+do
+ echo -n "${bold}## Do you have a specific version?${reset} ${red}[y] or [n]${reset}${bold}.:${reset} "
+ IFS= read answer
+done
+
+typeset -l user_answer=$answer
+
+if [ "$user_answer" == "y" ]; then	
+	echo -n "${bold}## What's your version?${reset} ${red}Ex: v4.10.5${reset}${bold}.: v${reset}" 
+        read version
+        gradle_version=$version
+
+	validFormatVersion $gradle_version
+
+        getTextConfig "Download specific version gradle.: gradle-${gradle_version}"
+else
+	getVersionGradle
+	gradle_version="$GRADLE_VERSION"
+	
+	getTextConfig "Download last version gradle.: gradle-${gradle_version}"
+fi	
+
+#Valida se ja existe
+if [[ -d /opt/gradle || -d /opt/gradle/gradle-${gradle_version} ]]; then
+	#Mostra uma mensagem que já existe uma versao configurada
+	getTextConfig "End 2) Config Gradle"
+
+else
+	getTextConfig "Init Download Gradle.: gradle-${gradle_version}"
+	#Faz o download da versao informada
+	downloadGradleZipFile $gradle_version
+
+	#Apos o download adiciona no /etc/enviroment
+fi
 
 echo "${magenta}${bold}## End config env dev. Bye, ${USER^}! by `uname --kernel-name`/`uname --nodename` ;) ## ${reset}"
 exit 0
