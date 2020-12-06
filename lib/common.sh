@@ -32,6 +32,7 @@ JAVA_VERSION=$1
 JAVA_PATH="/usr/lib/jvm/java-${JAVA_VERSION}-openjdk-amd64"
 GRADLE_VERSION=""
 DOWNLOAD_DIR="/home/$USER/Downloads"
+PASSWORD_FILE=""
 
 #######################
 ## Utils's Functions ##
@@ -108,10 +109,12 @@ logError(){
 
 getVersionGradle(){
 
- if [ -z "$GRADLE_VERSION" ]; then	 
+ if [ ! -f $(pwd)/versions.txt ]; then	 
   logInfo "GET Last Gradle Version......"
   curl -s https://gradle.org/releases/ | grep -o "<span>v[^>]*</span>" | tr -d '<span/>' > $(pwd)/versions.txt
   logInfo "End GET Last Gradle Version......."
+ else
+  logInfo "GET Last Gradle Version from cache in file ${bold}versions.txt${reset}"
  fi
 
  while [[ "$GRADLE_VERSION" == "" ]]
@@ -130,3 +133,43 @@ downloadGradleZipFile(){
  logInfo "Saved in $DOWNLOAD_DIR"
  wget https://services.gradle.org/distributions/gradle-"$1"-all.zip -P "$DOWNLOAD_DIR"
 }
+
+#$1- Password
+#$2- Dir name
+createGradleDir(){
+ echo "$1" | sudo -S -v && sudo mkdir -p "/opt/$2"
+ logInfo "Create directory ${bold}/opt/$2${reset}"
+ GRADLE_PATH=$(cd /opt/gradle; pwd)
+}
+
+#$1- Dir name
+#$2- File name
+#$3- Password
+unzipFile(){
+ logInfo "Unzip file.: ${bold}From${reset} $DOWNLOAD_DIR ${bold}To${reset} $1"
+ if [ -e "$DOWNLOAD_DIR/$2" ]; then
+  echo "$3" | sudo -S -v && sudo unzip ${DOWNLOAD_DIR}/$2 -d $1
+  CODE_RESULT=0
+ else
+  logError "Unzip not found file in `echo $DOWNLOAD_DIR`"
+  CODE_RESULT=1
+ fi
+}
+
+getPassword(){
+ logInfo "GET Password"
+ if [ -e /usr/local/bin/passwd.txt ]; then
+ 	PASSWORD_FILE=$(</usr/local/bin/passwd.txt)
+ fi
+}
+
+addGradleInPathEnv(){
+ logInfo "${bold}${green}Actual PATH${reset} `echo $PATH`"
+ if [ -d "$1/bin" ]; then
+ 	PATH=${PATH}:$1/bin
+ 	logInfo "${bold}${red}New PATH with gradle${reset} `echo $PATH`"
+ else
+	logError "Directory not found"
+ fi
+}
+

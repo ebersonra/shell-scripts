@@ -126,9 +126,10 @@ else
 fi	
 
 #Valida se ja existe
-if [[ -d /opt/gradle || -d /opt/gradle/gradle-${gradle_version} ]]; then
+if [[ -d /opt/gradle && -d /opt/gradle/gradle-${gradle_version} ]]; then
 	#Mostra uma mensagem que já existe uma versao configurada
-	getTextConfig "End 2) Config Gradle"
+	getTextConfig "Gradle v${gradle_version} exist in /opt/gradle"
+	getTextConfig "Not is necessarily a new download"
 
 else
 	getTextConfig "Init Download Gradle.: gradle-${gradle_version}"
@@ -136,7 +137,18 @@ else
 	downloadGradleZipFile $gradle_version
 
 	#Apos o download adiciona no /etc/enviroment
+
+	#Unzip para /opt/
+	getPassword
+	createGradleDir $PASSWORD_FILE "gradle"
+	unzipFile $GRADLE_PATH "gradle-${gradle_version}-all.zip" $PASSWORD_FILE
+	
+	if [ "$CODE_RESULT" == 0 ]; then
+		addGradleInPathEnv "${GRADLE_PATH}/gradle-${gradle_version}"
+	fi
 fi
+
+getTextConfig "End 2) Config Gradle"
 
 echo "${magenta}${bold}## End config env dev. Bye, ${USER^}! by `uname --kernel-name`/`uname --nodename` ;) ## ${reset}"
 exit 0
