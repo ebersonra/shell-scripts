@@ -40,45 +40,54 @@ PASSWORD_FILE=""
 
 getJavaPath() {
  echo "${magenta}${bold}${format_line}"
- echo "## Init get_java_path()"
+ logInfo "Init getJavaPath()"
  echo "${espace_line}"
 
  JAVA_PATH=$(cd "$(dirname "$(realpath /etc/alternatives/java)")"; cd ..; pwd)
 
- echo "## End get_java_path.: $JAVA_PATH"
+ logInfo "End getJavaPath() $JAVA_PATH"
  echo "${format_line}${reset}"
 }
 
 getTextConfig() {
+ local text=$1
+
  echo "${magenta}${bold}${format_line}"
- echo "## $1 ##"
+ echo "## $text ##"
  echo "${format_line}${reset}"
  echo "${espace_line}"
 }
 
 installDefaultJdkJre() {
- echo "## Init install_default_jdk_jre()"
- echo "$1" | sudo -S -v && sudo apt install default-jre --yes && sudo apt install default-jdk --yes && echo "JAVAC VERSION: `javac -version`" && echo "JAVA VERSION: `java -version`"
- echo "## End install_default_jdk_jre()"
+ local password=$1
+
+ logInfo "Init installDefaultJdkJre()"
+ echo "$password" | sudo -S -v && sudo apt install default-jre --yes && sudo apt install default-jdk --yes && echo "JAVAC VERSION: `javac -version`" && echo "JAVA VERSION: `java -version`"
+ logInfo "End installDefaultJdkJre()"
 }
 
 installOpenjdkJreByVersion() {
- echo "## Init install_openjdk_jre_by_version"
- echo "$1" | sudo -S -v && sudo apt install openjdk-${JAVA_VERSION}-jre --yes && sudo apt install openjdk-${JAVA_VERSION}-jdk --yes && echo "JAVAC VERSION: `javac -version`" && echo "JAVA VERSION: `java -version`"
- echo "## End install_openjdk_jre_by_version"
+ local password=$1
+
+ logInfo "Init installOpenjdkJreByVersion()"
+ echo "$password" | sudo -S -v && sudo apt install openjdk-${JAVA_VERSION}-jre --yes && sudo apt install openjdk-${JAVA_VERSION}-jdk --yes && echo "JAVAC VERSION: `javac -version`" && echo "JAVA VERSION: `java -version`"
+ logInfo "End installOpenjdkJreByVersion()"
 }
 
 addJavaHomeInFileEnvironment(){
- echo "## Int add_java_home_in_file_environment()"
- echo "$1" | sudo -S -v && sudo sed -i -e '$aJAVA_HOME="'${JAVA_PATH}'"' /etc/environment && source /etc/environment
- echo "## End add_java_home_in_file_environment()"
+ local password=$1
+
+ logInfo "Init addJavaHomeInFileEnvironment()"
+ echo "$password" | sudo -S -v && sudo sed -i -e '$aJAVA_HOME="'${JAVA_PATH}'"' /etc/environment && source /etc/environment
+ updateFileEnv "$JAVA_PATH"
+ logInfo "End addJavaHomeInFileEnvironment()"
 }
 
 validFormatVersion() {
- 
  local version=$1
  local text_version="[ ${bold}${green}OK${reset} ] Version valid formart v"
 
+ logInfo "Init validFormatVersion()"
  if [[ $version == ?.?.? ]]; then
  	logInfo "${text_version}${version}"
  elif [[ $version == ?.?? ]]; then
@@ -94,16 +103,19 @@ validFormatVersion() {
  	logInfo "[ ${bold}${red}x${reset} ] Version invalid format v$version"
 	exit 1
  fi
+ logInfo "Init validFormatVersion()"
 }
 
 logInfo(){
  local message=$1
+
  echo "${espace_line}"
  echo "## $message"
 }
 
 logError(){
  local message=$1
+
  echo "${bold}${red}### Error.:${reset} $message"
 }
 
@@ -130,25 +142,29 @@ getVersionGradle(){
 }
 
 downloadGradleZipFile(){
+ local version=$1
+
  logInfo "Saved in $DOWNLOAD_DIR"
- wget https://services.gradle.org/distributions/gradle-"$1"-all.zip -P "$DOWNLOAD_DIR"
+ wget https://services.gradle.org/distributions/gradle-"$version"-all.zip -P "$DOWNLOAD_DIR"
 }
 
-#$1- Password
-#$2- Dir name
 createGradleDir(){
- echo "$1" | sudo -S -v && sudo mkdir -p "/opt/$2"
- logInfo "Create directory ${bold}/opt/$2${reset}"
- GRADLE_PATH=$(cd /opt/gradle; pwd)
+ local password=$1
+ local dir_name=$2
+
+ echo "$password" | sudo -S -v && sudo mkdir -p "/opt/$dir_name"
+ logInfo "Create directory ${bold}/opt/$dir_name${reset}"
+ GRADLE_PATH=$(cd /opt/${dir_name}; pwd)
 }
 
-#$1- Dir name
-#$2- File name
-#$3- Password
 unzipFile(){
- logInfo "Unzip file.: ${bold}From${reset} $DOWNLOAD_DIR ${bold}To${reset} $1"
- if [ -e "$DOWNLOAD_DIR/$2" ]; then
-  echo "$3" | sudo -S -v && sudo unzip ${DOWNLOAD_DIR}/$2 -d $1
+ local dir_name=$1
+ local file_name=$2
+ local password=$3
+
+ logInfo "Unzip file.: ${bold}From${reset} $DOWNLOAD_DIR ${bold}To${reset} $dir_name"
+ if [ -e "$DOWNLOAD_DIR/$file_name" ]; then
+  echo "$password" | sudo -S -v && sudo unzip ${DOWNLOAD_DIR}/$file_name -d $dir_name
   CODE_RESULT=0
  else
   logError "Unzip not found file in `echo $DOWNLOAD_DIR`"
@@ -157,19 +173,37 @@ unzipFile(){
 }
 
 getPassword(){
- logInfo "GET Password"
- if [ -e /usr/local/bin/passwd.txt ]; then
- 	PASSWORD_FILE=$(</usr/local/bin/passwd.txt)
+ local dir_name=$1
+
+ logInfo "GET Password in path ${bold}$dir_name${reset}"
+ if [ -e "${dir_name}/passwd.txt" ]; then
+ 	PASSWORD_FILE=$(<${dir_name}/passwd.txt)
  fi
 }
 
 addGradleInPathEnv(){
+ local path_file=$1
+
  logInfo "${bold}${green}Actual PATH${reset} `echo $PATH`"
- if [ -d "$1/bin" ]; then
- 	PATH=${PATH}:$1/bin
- 	logInfo "${bold}${red}New PATH with gradle${reset} `echo $PATH`"
+ if [ -d "$path_file/bin" ]; then
+ 	
+	updateFileEnv "${path_file}/bin"
  else
 	logError "Directory not found"
  fi
+}
+
+updateFileEnv(){
+ local new_parameter=$1
+
+ NEW_PATH=${PATH}:${new_parameter}
+ getPassword "/usl/local/bin"
+
+ logInfo "Init updateFileEnv()"
+			 
+ echo "$PASSWORD_FILE" | sudo -S -v && sudo sed -i '/^PATH/ d' /etc/environment
+ echo "$PASSWORD_FILE" | sudo -S -v && sudo sed -i -e '$aPATH="'${NEW_PATH}'"' /etc/environment && source /etc/environment
+
+ cat /etc/environment
 }
 

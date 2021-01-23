@@ -139,7 +139,7 @@ else
 	#Apos o download adiciona no /etc/enviroment
 
 	#Unzip para /opt/
-	getPassword
+	getPassword "/usr/local/bin"
 	createGradleDir $PASSWORD_FILE "gradle"
 	unzipFile $GRADLE_PATH "gradle-${gradle_version}-all.zip" $PASSWORD_FILE
 	
