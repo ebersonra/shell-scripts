@@ -62,7 +62,9 @@ installDefaultJdkJre() {
  local password=$1
 
  logInfo "Init installDefaultJdkJre()"
+ 
  echo "$password" | sudo -S -v && sudo apt install default-jre --yes && sudo apt install default-jdk --yes && echo "JAVAC VERSION: `javac -version`" && echo "JAVA VERSION: `java -version`"
+ 
  logInfo "End installDefaultJdkJre()"
 }
 
@@ -70,7 +72,9 @@ installOpenjdkJreByVersion() {
  local password=$1
 
  logInfo "Init installOpenjdkJreByVersion()"
+ 
  echo "$password" | sudo -S -v && sudo apt install openjdk-${JAVA_VERSION}-jre --yes && sudo apt install openjdk-${JAVA_VERSION}-jdk --yes && echo "JAVAC VERSION: `javac -version`" && echo "JAVA VERSION: `java -version`"
+ 
  logInfo "End installOpenjdkJreByVersion()"
 }
 
@@ -78,8 +82,11 @@ addJavaHomeInFileEnvironment(){
  local password=$1
 
  logInfo "Init addJavaHomeInFileEnvironment()"
+
+ echo "$password" | sudo -S -v && sudo sed -i '/^JAVA_HOME/ d' /etc/environment
  echo "$password" | sudo -S -v && sudo sed -i -e '$aJAVA_HOME="'${JAVA_PATH}'"' /etc/environment && source /etc/environment
- updateFileEnv "$JAVA_PATH"
+ updateFileEnv "${JAVA_PATH}/bin"
+ 
  logInfo "End addJavaHomeInFileEnvironment()"
 }
 
@@ -122,11 +129,14 @@ logError(){
 getVersionGradle(){
 
  if [ ! -f $(pwd)/versions.txt ]; then	 
-  logInfo "GET Last Gradle Version......"
-  curl -s https://gradle.org/releases/ | grep -o "<span>v[^>]*</span>" | tr -d '<span/>' > $(pwd)/versions.txt
-  logInfo "End GET Last Gradle Version......."
+  
+	 logInfo "--> GET Last Gradle Version <--"
+  	 
+	 curl -s https://gradle.org/releases/ | grep -o "<span>v[^>]*</span>" | tr -d '<span/>' > $(pwd)/versions.txt
+  
+  	 logInfo "--> End GET Last Gradle Version <--"
  else
-  logInfo "GET Last Gradle Version from cache in file ${bold}versions.txt${reset}"
+	 logInfo "GET Last Gradle Version from cache in file ${bold}versions.txt${reset}"
  fi
 
  while [[ "$GRADLE_VERSION" == "" ]]
@@ -164,11 +174,12 @@ unzipFile(){
 
  logInfo "Unzip file.: ${bold}From${reset} $DOWNLOAD_DIR ${bold}To${reset} $dir_name"
  if [ -e "$DOWNLOAD_DIR/$file_name" ]; then
-  echo "$password" | sudo -S -v && sudo unzip ${DOWNLOAD_DIR}/$file_name -d $dir_name
-  CODE_RESULT=0
- else
-  logError "Unzip not found file in `echo $DOWNLOAD_DIR`"
-  CODE_RESULT=1
+
+  	echo "$password" | sudo -S -v && sudo unzip ${DOWNLOAD_DIR}/$file_name -d $dir_name
+  	CODE_RESULT=0
+ else 
+  	logError "Unzip not found file in `echo $DOWNLOAD_DIR`"
+  	CODE_RESULT=1
  fi
 }
 
@@ -196,14 +207,21 @@ addGradleInPathEnv(){
 updateFileEnv(){
  local new_parameter=$1
 
- NEW_PATH=${PATH}:${new_parameter}
- getPassword "/usl/local/bin"
-
  logInfo "Init updateFileEnv()"
-			 
- echo "$PASSWORD_FILE" | sudo -S -v && sudo sed -i '/^PATH/ d' /etc/environment
- echo "$PASSWORD_FILE" | sudo -S -v && sudo sed -i -e '$aPATH="'${NEW_PATH}'"' /etc/environment && source /etc/environment
 
- cat /etc/environment
+ if [[ ! $PATH == *"$new_parameter" ]]; then
+ 	
+	NEW_PATH=${PATH}:${new_parameter}
+ 	getPassword "/usl/local/bin"
+	 
+ 	echo "$PASSWORD_FILE" | sudo -S -v && sudo sed -i '/^PATH/ d' /etc/environment
+ 	echo "$PASSWORD_FILE" | sudo -S -v && sudo sed -i -e '$aPATH="'${NEW_PATH}'"' /etc/environment && source /etc/environment
+
+ 	cat /etc/environment
+ else
+	 logInfo "$new_parameter exists in environment ${bold}PATH${reset}"
+ fi
+
+ logInfo "End updateFileEnv()"
 }
 
