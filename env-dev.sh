@@ -26,7 +26,7 @@ echo "${espace_line}"
 echo "## JDK/JRE.: `echo $JAVA_HOME` ##"
 echo "${espace_line}"
 
-echo "## PATH.: `echo $PATH` ##"
+echo "## PATH.: `source /etc/environment && echo $PATH` ##"
 echo "${espace_line}"
 
 if [ -z "$JAVA_HOME" ]; then
