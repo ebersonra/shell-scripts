@@ -5,7 +5,7 @@
 $ touch passwd.txt && vim passwd.txt
 ```
 ### Instalando Java.
-#### Instalando Java JDK Default para Ubuntu 24.04. Ex: Java JDK 11.
+#### Instalando Java JDK Default para Ubuntu 20.04. Ex: Java JDK 11.
 ```
 $ ./env-dev.sh 
 ```
