@@ -33,6 +33,13 @@ JAVA_PATH="/usr/lib/jvm/java-${JAVA_VERSION}-openjdk-amd64"
 GRADLE_VERSION=""
 DOWNLOAD_DIR="/home/$USER/Downloads"
 PASSWORD_FILE=""
+ADOPTIUM_API="https://api.adoptium.net/v3"
+ADOPTIUM_RELEASES_URL="https://adoptium.net/pt-BR/temurin/releases"
+TEMURIN_INSTALL_ROOT="/opt/java"
+TEMURIN_ARCHIVE_NAME=""
+ADOPTIUM_LTS=""
+ADOPTIUM_ALL=""
+ADOPTIUM_MOST_RECENT_LTS=""
 
 #######################
 ## Utils's Functions ##
@@ -85,9 +92,165 @@ addJavaHomeInFileEnvironment(){
 
  echo "$password" | sudo -S -v && sudo sed -i '/^JAVA_HOME/ d' /etc/environment
  echo "$password" | sudo -S -v && sudo sed -i -e '$aJAVA_HOME="'${JAVA_PATH}'"' /etc/environment && source /etc/environment
+ export JAVA_HOME="${JAVA_PATH}"
  updateFileEnv "${JAVA_PATH}/bin"
  
  logInfo "End addJavaHomeInFileEnvironment()"
+}
+
+getAdoptiumArch() {
+ case "$(uname -m)" in
+  x86_64) echo "x64" ;;
+  aarch64|arm64) echo "aarch64" ;;
+  *)
+   logError "Unsupported architecture.: $(uname -m)"
+   exit 1
+   ;;
+ esac
+}
+
+listAdoptiumReleases() {
+ logInfo "Init listAdoptiumReleases() from ${ADOPTIUM_RELEASES_URL}"
+
+ local json
+ local json_compact
+ json=$(curl -fsSL "${ADOPTIUM_API}/info/available_releases")
+ if [ -z "$json" ]; then
+  logError "Failed to fetch Temurin releases from Adoptium API"
+  exit 1
+ fi
+
+ json_compact=$(echo "$json" | tr -d '\n')
+ ADOPTIUM_LTS=$(echo "$json_compact" | grep -o '"available_lts_releases"[[:space:]]*:[[:space:]]*\[[^]]*\]' | grep -o '[0-9]\+' | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+ ADOPTIUM_ALL=$(echo "$json_compact" | grep -o '"available_releases"[[:space:]]*:[[:space:]]*\[[^]]*\]' | grep -o '[0-9]\+' | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+ ADOPTIUM_MOST_RECENT_LTS=$(echo "$json_compact" | grep -o '"most_recent_lts"[[:space:]]*:[[:space:]]*[0-9]\+' | grep -o '[0-9]\+$')
+
+ if [ -z "$ADOPTIUM_ALL" ] || [ -z "$ADOPTIUM_MOST_RECENT_LTS" ]; then
+  logError "Failed to parse Temurin releases from Adoptium API"
+  exit 1
+ fi
+
+ echo "${bold}## Temurin releases (Adoptium).:${reset} ${ADOPTIUM_RELEASES_URL}"
+ echo "${espace_line}"
+ echo "${bold}## LTS available.:${reset} ${green}${ADOPTIUM_LTS}${reset}"
+ echo "${bold}## All available.:${reset} ${ADOPTIUM_ALL}"
+ echo "${bold}## Most recent LTS.:${reset} ${green}${ADOPTIUM_MOST_RECENT_LTS}${reset}"
+ echo "${espace_line}"
+
+ logInfo "End listAdoptiumReleases()"
+}
+
+isAdoptiumReleaseAvailable() {
+ local version=$1
+ local release
+
+ for release in $ADOPTIUM_ALL; do
+  if [ "$release" = "$version" ]; then
+   return 0
+  fi
+ done
+ return 1
+}
+
+isValidTemurinArchive() {
+ local archive=$1
+ local magic
+
+ if [ ! -f "$archive" ] || [ ! -s "$archive" ]; then
+  return 1
+ fi
+
+ # Temurin ships gzip-compressed tar (.tar.gz); reject plain tar/HTML/partial downloads
+ magic=$(od -An -tx1 -N2 "$archive" 2>/dev/null | tr -d ' \n')
+ if [ "$magic" != "1f8b" ]; then
+  return 1
+ fi
+
+ gzip -t "$archive" 2>/dev/null || return 1
+ return 0
+}
+
+downloadTemurinJdk() {
+ local version=$1
+ local arch
+ local binary_url
+ local package_link
+ local archive_path
+
+ logInfo "Init downloadTemurinJdk() version ${version}"
+
+ arch=$(getAdoptiumArch)
+ binary_url="${ADOPTIUM_API}/binary/latest/${version}/ga/linux/${arch}/jdk/hotspot/normal/eclipse?project=jdk"
+ package_link=$(curl -fsSI "$binary_url" | grep -i '^location:' | awk '{print $2}' | tr -d '\r')
+
+ if [ -z "$package_link" ]; then
+  logError "Failed to resolve Temurin download URL for JDK ${version}"
+  exit 1
+ fi
+
+ TEMURIN_ARCHIVE_NAME=$(basename "$package_link" | sed 's/%2B/+/g')
+ archive_path="${DOWNLOAD_DIR}/${TEMURIN_ARCHIVE_NAME}"
+ mkdir -p "$DOWNLOAD_DIR"
+
+ if isValidTemurinArchive "$archive_path"; then
+  logInfo "Archive already exists.: ${archive_path}"
+ else
+  if [ -e "$archive_path" ]; then
+   logInfo "Invalid cached archive removed.: ${archive_path}"
+   rm -f "$archive_path"
+  fi
+
+  logInfo "Download Temurin JDK ${version}.: ${package_link}"
+  wget --progress=bar:force:noscroll -O "$archive_path" "$package_link"
+
+  if ! isValidTemurinArchive "$archive_path"; then
+   rm -f "$archive_path"
+   logError "Downloaded file is not a valid Temurin .tar.gz archive"
+   exit 1
+  fi
+ fi
+
+ logInfo "End downloadTemurinJdk() ${TEMURIN_ARCHIVE_NAME}"
+}
+
+installTemurinJdk() {
+ local password=$1
+ local version=$2
+ local extract_dir
+ local extracted_jdk
+ local archive_path
+
+ logInfo "Init installTemurinJdk() version ${version}"
+
+ archive_path="${DOWNLOAD_DIR}/${TEMURIN_ARCHIVE_NAME}"
+ if [ -z "$TEMURIN_ARCHIVE_NAME" ] || ! isValidTemurinArchive "$archive_path"; then
+  logError "Temurin archive not found or invalid in ${DOWNLOAD_DIR}"
+  exit 1
+ fi
+
+ echo "$password" | sudo -S -v && sudo mkdir -p "$TEMURIN_INSTALL_ROOT"
+ extract_dir=$(mktemp -d "${DOWNLOAD_DIR}/temurin-${version}-XXXXXX")
+ if ! tar -xzf "$archive_path" -C "$extract_dir"; then
+  rm -rf "$extract_dir"
+  logError "Failed to extract Temurin archive ${TEMURIN_ARCHIVE_NAME}"
+  exit 1
+ fi
+
+ extracted_jdk=$(find "$extract_dir" -mindepth 1 -maxdepth 1 -type d | head -1)
+ if [ -z "$extracted_jdk" ] || [ ! -x "${extracted_jdk}/bin/java" ]; then
+  rm -rf "$extract_dir"
+  logError "Invalid Temurin archive content"
+  exit 1
+ fi
+
+ JAVA_PATH="${TEMURIN_INSTALL_ROOT}/jdk-${version}"
+ echo "$password" | sudo -S -v && sudo rm -rf "$JAVA_PATH"
+ echo "$password" | sudo -S -v && sudo mv "$extracted_jdk" "$JAVA_PATH"
+ rm -rf "$extract_dir"
+
+ logInfo "End installTemurinJdk() ${JAVA_PATH}"
+ echo "JAVA VERSION: $(${JAVA_PATH}/bin/java -version 2>&1 | head -1)"
+ echo "JAVAC VERSION: $(${JAVA_PATH}/bin/javac -version 2>&1)"
 }
 
 validFormatVersion() {
@@ -128,27 +291,37 @@ logError(){
 
 getVersionGradle(){
 
- if [ ! -f $(pwd)/versions.txt ]; then	 
+ if [ ! -s "$(pwd)/versions.txt" ]; then	 
   
 	 logInfo "--> GET Last Gradle Version <--"
   	 
-	 curl -s https://gradle.org/releases/ | grep -o "<span>v[^>]*</span>" | tr -d '<span/>' > $(pwd)/versions.txt
+	 local latest_version
+	 latest_version=$(curl -s https://services.gradle.org/versions/current | grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | grep -o '[0-9][0-9.]*')
+	 if [ -z "$latest_version" ]; then
+		logError "Failed to get last Gradle version"
+		exit 1
+	 fi
+	 echo "v${latest_version}" > "$(pwd)/versions.txt"
   
   	 logInfo "--> End GET Last Gradle Version <--"
  else
 	 logInfo "GET Last Gradle Version from cache in file ${bold}versions.txt${reset}"
  fi
 
- while [[ "$GRADLE_VERSION" == "" ]]
+ while IFS= read -r line || [ -n "$line" ]
  do 
-	 IFS= read -r line
 	 logInfo "Last Gradle Version.: $line"
-	 if [ $line != "" ]; then
-		line=$(echo "${line//v/}")
+	 if [ -n "$line" ]; then
+		line="${line//v/}"
 	 	GRADLE_VERSION=$line
+		break
 	 fi
-
  done < "$(pwd)/versions.txt"
+
+ if [ -z "$GRADLE_VERSION" ]; then
+	logError "Failed to resolve Gradle version from versions.txt"
+	exit 1
+ fi
 }
 
 downloadGradleZipFile(){
@@ -212,7 +385,7 @@ updateFileEnv(){
  if [[ ! $PATH == *"$new_parameter" ]]; then
  	
 	NEW_PATH=${PATH}:${new_parameter}
- 	getPassword "/usl/local/bin"
+ 	getPassword "/usr/local/bin"
 	 
  	echo "$PASSWORD_FILE" | sudo -S -v && sudo sed -i '/^PATH/ d' /etc/environment
  	echo "$PASSWORD_FILE" | sudo -S -v && sudo sed -i -e '$aPATH="'${NEW_PATH}'"' /etc/environment && source /etc/environment

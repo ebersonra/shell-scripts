@@ -1,11 +1,10 @@
 #!/bin/bash
 
-path_common=$(pwd)
+script_dir="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" && pwd)"
 
-if [ -f "${path_common}/lib/common.sh" ]; then
-	. ${path_common}/lib/common.sh
-	path_common=${path_common}/lib
-	getTextConfig "Get common file in $path_common"
+if [ -f "${script_dir}/lib/common.sh" ]; then
+	. "${script_dir}/lib/common.sh"
+	getTextConfig "Get common file in ${script_dir}/lib"
 else
 	. /usr/local/bin/lib/common.sh
 	getTextConfig "Get common file in /usr/local/bin/lib"
