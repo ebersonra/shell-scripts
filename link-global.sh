@@ -29,6 +29,7 @@ build_commands() {
     ["${PREFIX}-optimize-system"]="dell/optimize_system.sh"
     ["${PREFIX}-setup-amd-gpu"]="dell/setup_amd_gpu.sh"
     ["${PREFIX}-fix-amd-error"]="dell/fix_amd_error.sh"
+    ["${PREFIX}-cursor-rules"]="dell/cursor_rules.sh"
     ["${PREFIX}-link-global"]="link-global.sh"
   )
 }

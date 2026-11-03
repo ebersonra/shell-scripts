@@ -51,3 +51,30 @@ Depois, em **qualquer terminal** (sem `cd` no projeto):
 | `dell-link-global --list` | `./link-global.sh --list` |
 
 Se mover o clone do projeto, rode de novo `sudo ./link-global.sh` (ou `sudo dell-link-global`) para apontar os links ao novo caminho.
+
+## dell-cursor-rules
+
+Sincroniza as rules globais de `~/.cursor/rules/*.mdc` para o `.cursor/rules/` de cada repositório em `~/Documentos/_Developer/_github` (inclui repos via symlink; ignora `*.worktrees`), para que o Cursor IDE e os cloud agents as apliquem.
+
+```bash
+dell-cursor-rules status                 # pendências por repo (rc=1 se houver)
+dell-cursor-rules sync --dry-run         # mostra o que faria
+dell-cursor-rules sync                   # copia/atualiza, cópias em .git/info/exclude
+dell-cursor-rules sync --track           # idem, sem exclude (para commitar a rule no repo)
+```
+
+- Cópias são idênticas à fonte; o hash de cada cópia fica em `.cursor/rules/.dell-cursor-rules.sha` (sempre excluído do git).
+- Rule local diferente ou cópia editada à mão nunca é sobrescrita: vira conflito (rc=3).
+- Por padrão as cópias não entram em commit (protege repos públicos). Use `--track` só onde a rule deve ser versionada.
+- Não faz commit: cada repo segue o fluxo normal de PR.
+
+### Contexto por projeto (`~/agent-context/`)
+
+Arquivo curto (≤ 2 KB) por projeto que os agentes leem no lugar do histórico do chat: estado atual, decisões, pendências, regras e links. Quem terminar um trabalho atualiza o arquivo.
+
+```bash
+dell-cursor-rules context init 4u2-fia-bot shell-scripts   # cria a partir do template (não sobrescreve)
+dell-cursor-rules context ls                               # tamanho e data; avisa acima de 2 KB
+```
+
+A pasta fica fora de qualquer repo (modo 700); não coloque segredos, telefones nem conteúdo de mensagens nela.
